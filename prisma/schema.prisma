@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id           String        @id @default(uuid())
+  name         String
+  email        String?      @unique
+  chatSessions ChatSession[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Settings {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MCPServer {
+  id          String   @id @default(uuid())
+  name        String
+  status      String   @default("stopped") // running, stopped, error
+  port        Int
+  host        String   @default("localhost")
+  maxRequests Int      @default(10)
+  timeout     Int      @default(30000)
+  model       Model    @relation(fields: [modelId], references: [id])
+  modelId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Model {
+  id                String             @id @default(uuid())
+  name              String
+  status            String             @default("not_installed") // installed, not_installed, downloading, error
+  parameters        String?            // JSON string of model parameters
+  servers           MCPServer[]
+  chatSessions      ChatSession[]
+  ollamaDetails     OllamaModelDetails?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model OllamaModelDetails {
+  id                String    @id @default(uuid())
+  model             Model     @relation(fields: [modelId], references: [id])
+  modelId           String    @unique
+  size              BigInt?  // Size in bytes
+  format            String?  // e.g., GGUF
+  family            String?  // e.g., Llama, Mistral
+  parameterSize     String?  // e.g., "7B", "13B"
+  quantizationLevel String?  // e.g., "Q4_K_M"
+  downloadProgress  Float     @default(0) // 0-100%
+  downloadStatus    String    @default("idle") // idle, downloading, completed, error
+  errorMessage      String?
+  digest            String?  // Model hash/digest
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model ChatSession {
+  id        String    @id @default(uuid())
+  name      String
+  messages  Message[]
+  user      User      @relation(fields: [userId], references: [id])
+  userId    String
+  model     Model     @relation(fields: [modelId], references: [id])
+  modelId   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Message {
+  id            String      @id @default(uuid())
+  content       String
+  role          String      // user, assistant
+  metadata      String?     // JSON string for additional metadata
+  chatSession   ChatSession @relation(fields: [chatSessionId], references: [id])
+  chatSessionId String
+  createdAt     DateTime    @default(now())
+} 
